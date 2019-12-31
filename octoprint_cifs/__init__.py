@@ -10,6 +10,10 @@ from __future__ import absolute_import
 # Take a look at the documentation on what other plugin mixins are available.
 
 import octoprint.plugin
+import octoprint.util
+import os
+import time
+import glob
 
 class CifsPlugin(octoprint.plugin.SettingsPlugin,
                  octoprint.plugin.AssetPlugin,
@@ -55,6 +59,21 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 			)
 		)
 
+        # file_find() looks to gather any .gcode files that were modified in the last ten minutes and import them
+        def file_find():
+            startTime = time.time()
+            fileList = glob.glob('/home/pi/.octoprint/remote/' + '/**/*.gcode')
+            filesLastTenMins
+            for i in fileList:
+                if (time.time() - os.path.getctime(i)) < 600:
+                    filesLastTenMins.append(i)
+            return filesLastTenMins
+
+        # run file_find() every 2 minutes
+        timer = RepeatedTimer(120, file_find)
+
+        def on_after_startup(self):
+            timer.start()
 
 # If you want your plugin to be registered within OctoPrint under a different name than what you defined in setup.py
 # ("OctoPrint-PluginSkeleton"), you may define that here. Same goes for the other metadata derived from setup.py that
