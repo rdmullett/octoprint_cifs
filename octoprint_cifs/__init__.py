@@ -17,7 +17,8 @@ import glob
 
 class CifsPlugin(octoprint.plugin.SettingsPlugin,
                  octoprint.plugin.AssetPlugin,
-                 octoprint.plugin.TemplatePlugin):
+                 octoprint.plugin.TemplatePlugin,
+		 octoprint.plugin.StartupPlugin):
 
 	##~~ SettingsPlugin mixin
 
@@ -60,20 +61,25 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 		)
 
         # file_find() looks to gather any .gcode files that were modified in the last ten minutes and import them
-        def file_find():
-            startTime = time.time()
-            fileList = glob.glob('/home/pi/.octoprint/remote/' + '/**/*.gcode')
-            filesLastTenMins
-            for i in fileList:
-                if (time.time() - os.path.getctime(i)) < 600:
-                    filesLastTenMins.append(i)
-            return filesLastTenMins
-
-        # run file_find() every 2 minutes
-        timer = RepeatedTimer(120, file_find)
+        def file_find(self):
+            self.startTime = time.time()
+	    # TODO: this list isn't quite what we need (doesn't collect top level files. os.walk is being funny on loops so need to play with that too....
+            self.fileList = glob.glob('/home/pi/.octoprint/remote/' + '**/*.gcode')
+            self.filesLastTenMins = []
+            for i in self.fileList:
+                #if (self.startTime - os.path.getctime(i)) < 600:
+		# 1 minute for testing
+                if (self.startTime - os.path.getctime(i)) < 60:
+                    self.filesLastTenMins.append(i)
+            self._logger.info("The files from the last ten minutes are: " + str(self.filesLastTenMins))
+            return self.filesLastTenMins
 
         def on_after_startup(self):
-            timer.start()
+            # run file_find() every 2 minutes
+	    #self.fileTimer = octoprint.util.RepeatedTimer(120, self.file_find)
+	    # every 20 seconds for testing
+	    self.fileTimer = octoprint.util.RepeatedTimer(20, self.file_find)
+            self.fileTimer.start()
 
 # If you want your plugin to be registered within OctoPrint under a different name than what you defined in setup.py
 # ("OctoPrint-PluginSkeleton"), you may define that here. Same goes for the other metadata derived from setup.py that
@@ -91,6 +97,7 @@ def __plugin_load__():
 	global __plugin_implementation__
 	__plugin_implementation__ = CifsPlugin()
 
+	
 	global __plugin_hooks__
 	__plugin_hooks__ = {
 		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information

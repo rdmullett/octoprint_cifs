@@ -15,3 +15,7 @@ the plugin manager.
 ## Configuration
 
 **TODO:** Describe your plugin's configuration options (if any).
+**TODO:** Add a settings parameter for the CIFS share
+**TODO:** Update fstab and mount cifs share on settings save if it differs from the old share
+**TODO:** Add a UI to sidebar to find the files and import them
+**TODO:** Add a settings option to adjust/disable timer (might want to remove the timer entirely depending on performance)
