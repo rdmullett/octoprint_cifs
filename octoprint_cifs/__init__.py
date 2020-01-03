@@ -14,11 +14,13 @@ import octoprint.util
 import os
 import time
 import glob
+import flask
 
 class CifsPlugin(octoprint.plugin.SettingsPlugin,
                  octoprint.plugin.AssetPlugin,
                  octoprint.plugin.TemplatePlugin,
-		 octoprint.plugin.StartupPlugin):
+		 octoprint.plugin.StartupPlugin,
+		 octoprint.plugin.SimpleApiPlugin):
 
 	##~~ SettingsPlugin mixin
 
@@ -80,6 +82,11 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 	    # every 20 seconds for testing
 	    self.fileTimer = octoprint.util.RepeatedTimer(20, self.file_find)
             self.fileTimer.start()
+
+	def get_template_configs(self):
+	    return [
+		    dict(type="sidebar", custom_bindings=False)
+		   ]
 
 # If you want your plugin to be registered within OctoPrint under a different name than what you defined in setup.py
 # ("OctoPrint-PluginSkeleton"), you may define that here. Same goes for the other metadata derived from setup.py that
