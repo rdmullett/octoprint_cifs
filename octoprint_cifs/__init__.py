@@ -88,6 +88,23 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 		    dict(type="sidebar", custom_bindings=False)
 		   ]
 
+        def get_template_configs(self):
+            return dict(cifs_share=self._settings.get(["cifs_share"]))
+
+        def on_settings_save(self, data):
+            old_value = self._gettings.get(["cifs_share"])
+
+            octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
+
+            new_value = self._settings.get(["cifs_share"])
+
+            #TODO: change this to actually make the required changes in fstab and add the updated CIFS share on setting save. For now we log it as a test to ensure functionality
+            if old_flag != new_flag:
+                self._logger.info("cifs_share changed from {old_flag} to {new_flag}".format(**locals()))
+
+        
+
+
 # If you want your plugin to be registered within OctoPrint under a different name than what you defined in setup.py
 # ("OctoPrint-PluginSkeleton"), you may define that here. Same goes for the other metadata derived from setup.py that
 # can be overwritten via __plugin_xyz__ control properties. See the documentation for that.
