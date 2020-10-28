@@ -13,14 +13,20 @@ import octoprint.plugin
 import octoprint.util
 import os
 import time
-import glob
 import flask
+import fnmatch
 
 class CifsPlugin(octoprint.plugin.SettingsPlugin,
                  octoprint.plugin.AssetPlugin,
                  octoprint.plugin.TemplatePlugin,
 		 octoprint.plugin.StartupPlugin,
-		 octoprint.plugin.SimpleApiPlugin):
+		 octoprint.plugin.SimpleApiPlugin,
+		):
+
+	def get_api_commands(self):
+		return dict(
+			file_find = []
+		)
 
 	##~~ SettingsPlugin mixin
 
@@ -37,7 +43,7 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 		return dict(
 			js=["js/cifs.js"],
 			css=["css/cifs.css"],
-			less=["less/cifs.less"]
+			#less=["less/cifs.less"]
 		)
 
 	##~~ Softwareupdate hook
@@ -65,8 +71,11 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
         # file_find() looks to gather any .gcode files that were modified in the last ten minutes and import them
         def file_find(self):
             self.startTime = time.time()
-	    # TODO: this list isn't quite what we need (doesn't collect top level files. os.walk is being funny on loops so need to play with that too....
-            self.fileList = glob.glob('/home/pi/.octoprint/remote/' + '**/*.gcode')
+	    self.fileList = []
+	    for r, d, f in os.walk('/home/pi/.octoprint/remote/3dprinting'):
+		for file in f:
+		    if ".gcode" in file:
+			    self.fileList.append(os.path.join(r, file))
             self.filesLastTenMins = []
             for i in self.fileList:
                 #if (self.startTime - os.path.getctime(i)) < 600:
@@ -76,20 +85,22 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
             self._logger.info("The files from the last ten minutes are: " + str(self.filesLastTenMins))
             return self.filesLastTenMins
 
-        def on_after_startup(self):
+        #def on_after_startup(self):
             # run file_find() every 2 minutes
 	    #self.fileTimer = octoprint.util.RepeatedTimer(120, self.file_find)
 	    # every 20 seconds for testing
-	    self.fileTimer = octoprint.util.RepeatedTimer(20, self.file_find)
-            self.fileTimer.start()
+	    
+	    #self.fileTimer = octoprint.util.RepeatedTimer(20, self.file_find)
+            #self.fileTimer.start()
+
+	def get_template_vars(self):
+	    return dict(cifs_share=self._settings.get(["cifs_share"]))
 
 	def get_template_configs(self):
 	    return [
+		    dict(type="settings", custom_bindings=False),
 		    dict(type="sidebar", custom_bindings=False)
-		   ]
-
-        def get_template_configs(self):
-            return dict(cifs_share=self._settings.get(["cifs_share"]))
+	    ]
 
         def on_settings_save(self, data):
             old_value = self._gettings.get(["cifs_share"])
@@ -102,7 +113,9 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
             if old_flag != new_flag:
                 self._logger.info("cifs_share changed from {old_flag} to {new_flag}".format(**locals()))
 
-        
+	def on_api_command(self, command, data):
+		if command == "upload":
+			self.file_find()
 
 
 # If you want your plugin to be registered within OctoPrint under a different name than what you defined in setup.py
