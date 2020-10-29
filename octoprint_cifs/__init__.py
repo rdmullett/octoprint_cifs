@@ -42,7 +42,8 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 		# core UI here.
 		return dict(
 			js=["js/cifs.js"],
-			css=["css/cifs.css"],
+			#TODO: remove these references
+			#css=["css/cifs.css"],
 			#less=["less/cifs.less"]
 		)
 
@@ -71,6 +72,7 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
         # file_find() looks to gather any .gcode files that were modified in the last ten minutes and import them
         def file_find(self):
             self.startTime = time.time()
+	    self._logger.info("Button was pressed at: " + str(self.startTime))
 	    self.fileList = []
 	    for r, d, f in os.walk('/home/pi/.octoprint/remote/3dprinting'):
 		for file in f:
@@ -99,7 +101,8 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 	def get_template_configs(self):
 	    return [
 		    dict(type="settings", custom_bindings=False),
-		    dict(type="sidebar", custom_bindings=False)
+		    #TODO: remove the sidebar
+		    #dict(type="sidebar", custom_bindings=False)
 	    ]
 
         def on_settings_save(self, data):
@@ -114,7 +117,7 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
                 self._logger.info("cifs_share changed from {old_flag} to {new_flag}".format(**locals()))
 
 	def on_api_command(self, command, data):
-		if command == "upload":
+		if command == "file_find":
 			self.file_find()
 
 

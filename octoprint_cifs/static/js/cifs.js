@@ -33,22 +33,25 @@ $(function() {
 
 	self.initializeButton = function() {
 		var buttonContainer = $('.fileinput-button')[0].parentElement;
-		       	buttonContainer.children[0].style.width = "100px";
+		       	/*buttonContainer.children[0].style.width = "100px";
                         buttonContainer.children[0].style.marginBottom = "10px";
                         buttonContainer.children[1].style.marginLeft = "0";
-                        buttonContainer.children[1].style.marginRight = "0";
-                        
+                        buttonContainer.children[1].style.marginRight = "0";*/
+			                        
                         self.btnUpload = document.createElement("button");
                         self.btnUpload.id = "job_preheat";
                         self.btnUpload.classList.add("btn");
                         self.btnUpload.classList.add("span4");
                         self.btnUpload.addEventListener("click", self.btnUploadClick);
 			self.btnUpload.name = "Upload from Cifs";
+			self.btnUpload.style.width = "268px";
+			self.btnUpload.style.marginLeft="0px";
+			self.btnUpload.style.marginBottom = "10px";
                         
                         self.btnUploadText = document.createTextNode(" ");
                         self.btnUpload.appendChild(self.btnUploadText);
                         
-                        self.btnUploadText.nodeValue = " Upload";
+                        self.btnUploadText.nodeValue = " Upload From Cifs ";
                         
                         buttonContainer.appendChild(self.btnUpload);
 	};
