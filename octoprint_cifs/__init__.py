@@ -15,6 +15,8 @@ import os
 import time
 import flask
 import fnmatch
+import subprocess
+import re
 
 class CifsPlugin(octoprint.plugin.SettingsPlugin,
                  octoprint.plugin.AssetPlugin,
@@ -87,6 +89,24 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
             self._logger.info("The files from the last ten minutes are: " + str(self.filesLastTenMins))
             return self.filesLastTenMins
 
+        def on_after_startup(self):
+	    self.cifsUrl = self._settings.get(["url"])
+	    self._logger.info("CIFS Share is confirming that %s is mounted" % self.cifsUrl)
+	    self.p = subprocess.Popen(["df"], shell=False, stdout=subprocess.PIPE)
+	    self.output = self.p.communicate()
+	    self.checkRegex = re.compile(str(self.cifsUrl))
+	    self._logger.info(self.checkRegex)
+	    self._logger.info(self.output)
+	    self.regexSearcher = self.checkRegex.search(str(self.output))
+
+	    if self.regexSearcher is not None:
+		self._logger.info("Cifs share is mounted!")
+		self._logger.info(self.regexSearcher)
+	    else:
+		self._logger.info("Cifs share is NOT mounted!")
+		self._logger.info(self.regexSearcher)
+
+	#TODO:remove this old test for file_find
         #def on_after_startup(self):
             # run file_find() every 2 minutes
 	    #self.fileTimer = octoprint.util.RepeatedTimer(120, self.file_find)
