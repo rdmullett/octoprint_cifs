@@ -34,6 +34,7 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 
 	def get_settings_defaults(self):
 		return dict(
+			url="example.com"
 			# put your plugin's default settings here
 		)
 
@@ -72,6 +73,7 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 		)
 
         # file_find() looks to gather any .gcode files that were modified in the last ten minutes and import them
+	#TODO: add state about when the last time that file_find got ran and instead of doing 10 minutes, look back to that timestamp
         def file_find(self):
             self.startTime = time.time()
 	    self._logger.info("Button was pressed at: " + str(self.startTime))
@@ -89,22 +91,41 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
             self._logger.info("The files from the last ten minutes are: " + str(self.filesLastTenMins))
             return self.filesLastTenMins
 
-        def on_after_startup(self):
-	    self.cifsUrl = self._settings.get(["url"])
-	    self._logger.info("CIFS Share is confirming that %s is mounted" % self.cifsUrl)
-	    self.p = subprocess.Popen(["df"], shell=False, stdout=subprocess.PIPE)
-	    self.output = self.p.communicate()
-	    self.checkRegex = re.compile(str(self.cifsUrl))
-	    self._logger.info(self.checkRegex)
-	    self._logger.info(self.output)
-	    self.regexSearcher = self.checkRegex.search(str(self.output))
+	def mount_check(self):
+            self.cifsUrl = self._settings.get(["url"])
 
-	    if self.regexSearcher is not None:
-		self._logger.info("Cifs share is mounted!")
-		self._logger.info(self.regexSearcher)
-	    else:
-		self._logger.info("Cifs share is NOT mounted!")
-		self._logger.info(self.regexSearcher)
+            if self.cifsUrl != "example.com":
+                    self._logger.info("Confirming that %s is mounted" % self.cifsUrl)
+            elif self.cifsUrl == "example.com":
+                    self._logger.info("CIFS URL is set to example.com. Skipping mount.")
+            elif self.cifsUrl == None:
+                    self._logger.info("CIFS URL is unset. Skipping mount.")
+            self.p = subprocess.Popen(["df"], shell=False, stdout=subprocess.PIPE)
+            self.output = self.p.communicate()
+            self.checkRegex = re.compile(str(self.cifsUrl))
+            self.regexSearcher = self.checkRegex.search(str(self.output))
+
+            if self.regexSearcher is not None:
+                self._logger.info("Cifs share is already mounted!")
+            else:
+                self._logger.info("Cifs share is NOT mounted!")
+		fstab_regex = re.compile('#cifs_share')
+		with open('/etc/fstab', 'rw') as f:
+		    for line in f:
+			result = fstab_regex.search(line)
+		    f.close()
+		self._logger.info("%s found in fstab" % result)
+		if result == None:
+			fstabAppend = open("/etc/fstab", "a")
+			fstabAppend.write('\#cifs_share')
+			fstabAppend.close()
+		else:
+		    self._logger.info("#cifs_share was found")
+
+
+        def on_after_startup(self):
+	    os.chmod('/etc/fstab', stat.S_IWOTH)
+	    self.mount_check()
 
 	#TODO:remove this old test for file_find
         #def on_after_startup(self):
@@ -126,15 +147,17 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 	    ]
 
         def on_settings_save(self, data):
-            old_value = self._gettings.get(["cifs_share"])
+            old_value = self._settings.get(["cifs_share"])
 
             octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
 
             new_value = self._settings.get(["cifs_share"])
 
             #TODO: change this to actually make the required changes in fstab and add the updated CIFS share on setting save. For now we log it as a test to ensure functionality
-            if old_flag != new_flag:
-                self._logger.info("cifs_share changed from {old_flag} to {new_flag}".format(**locals()))
+            if old_value != new_value:
+                self._logger.info("cifs_share changed from %s to %s" %(old_value, new_value))
+
+	    self.mount_check()
 
 	def on_api_command(self, command, data):
 		if command == "file_find":
