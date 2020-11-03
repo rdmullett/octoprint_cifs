@@ -45,9 +45,6 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 		# core UI here.
 		return dict(
 			js=["js/cifs.js"],
-			#TODO: remove these references
-			#css=["css/cifs.css"],
-			#less=["less/cifs.less"]
 		)
 
 	##~~ Softwareupdate hook
@@ -127,23 +124,12 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 	    os.chmod('/etc/fstab', stat.S_IWOTH)
 	    self.mount_check()
 
-	#TODO:remove this old test for file_find
-        #def on_after_startup(self):
-            # run file_find() every 2 minutes
-	    #self.fileTimer = octoprint.util.RepeatedTimer(120, self.file_find)
-	    # every 20 seconds for testing
-	    
-	    #self.fileTimer = octoprint.util.RepeatedTimer(20, self.file_find)
-            #self.fileTimer.start()
-
 	def get_template_vars(self):
 	    return dict(cifs_share=self._settings.get(["cifs_share"]))
 
 	def get_template_configs(self):
 	    return [
 		    dict(type="settings", custom_bindings=False),
-		    #TODO: remove the sidebar
-		    #dict(type="sidebar", custom_bindings=False)
 	    ]
 
         def on_settings_save(self, data):
