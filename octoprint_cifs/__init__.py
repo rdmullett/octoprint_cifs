@@ -15,8 +15,9 @@ import os
 import time
 import flask
 import fnmatch
-import subprocess
 import re
+import stat
+import threading
 
 class CifsPlugin(octoprint.plugin.SettingsPlugin,
                  octoprint.plugin.AssetPlugin,
@@ -34,7 +35,7 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 
 	def get_settings_defaults(self):
 		return dict(
-			url="example.com"
+			path="/example/path/to/cifs/mount"
 			# put your plugin's default settings here
 		)
 
@@ -69,59 +70,52 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 			)
 		)
 
+        def mount_check(self):
+            self.cifsPath = self._settings.get(["path"])
+
+            if self.cifsPath != "/example/path/to/cifs/mount":
+                    self._logger.info("Confirming that %s is mounted" % self.cifsPath)
+		    if os.path.ismount(self.cifsPath):
+                	self._logger.info("Cifs share is mounted.")
+			return True
+		    else:
+	                self._logger.warn("Cifs share is NOT mounted!")
+	                self._plugin_manager.send_plugin_message(self._identifier, dict(type="not_mounted"))
+			return False
+			
+            elif self.cifsPath == "/example/path/to/cifs/mount":
+                    self._logger.info("CIFS path is set to /example/path/to/cifs/mount. Please set with the proper path to the cifs mount and try again.")
+		    return False
+            elif self.cifsPath == None:
+                    self._logger.info("CIFS path is unset. Please set with the proper path to the cifs mount and try again.")
+		    return False
+
         # file_find() looks to gather any .gcode files that were modified in the last ten minutes and import them
 	#TODO: add state about when the last time that file_find got ran and instead of doing 10 minutes, look back to that timestamp
         def file_find(self):
-            self.startTime = time.time()
-	    self._logger.info("Button was pressed at: " + str(self.startTime))
-	    self.fileList = []
-	    for r, d, f in os.walk('/home/pi/.octoprint/remote/3dprinting'):
-		for file in f:
-		    if ".gcode" in file:
-			    self.fileList.append(os.path.join(r, file))
-            self.filesLastTenMins = []
-            for i in self.fileList:
-                #if (self.startTime - os.path.getctime(i)) < 600:
-		# 1 minute for testing
-                if (self.startTime - os.path.getctime(i)) < 60:
-                    self.filesLastTenMins.append(i)
-            self._logger.info("The files from the last ten minutes are: " + str(self.filesLastTenMins))
-            return self.filesLastTenMins
-
-	def mount_check(self):
-            self.cifsUrl = self._settings.get(["url"])
-
-            if self.cifsUrl != "example.com":
-                    self._logger.info("Confirming that %s is mounted" % self.cifsUrl)
-            elif self.cifsUrl == "example.com":
-                    self._logger.info("CIFS URL is set to example.com. Skipping mount.")
-            elif self.cifsUrl == None:
-                    self._logger.info("CIFS URL is unset. Skipping mount.")
-            self.p = subprocess.Popen(["df"], shell=False, stdout=subprocess.PIPE)
-            self.output = self.p.communicate()
-            self.checkRegex = re.compile(str(self.cifsUrl))
-            self.regexSearcher = self.checkRegex.search(str(self.output))
-
-            if self.regexSearcher is not None:
-                self._logger.info("Cifs share is already mounted!")
-            else:
-                self._logger.info("Cifs share is NOT mounted!")
-		fstab_regex = re.compile('#cifs_share')
-		with open('/etc/fstab', 'rw') as f:
-		    for line in f:
-			result = fstab_regex.search(line)
-		    f.close()
-		self._logger.info("%s found in fstab" % result)
-		if result == None:
-			fstabAppend = open("/etc/fstab", "a")
-			fstabAppend.write('\#cifs_share')
-			fstabAppend.close()
-		else:
-		    self._logger.info("#cifs_share was found")
-
+	    self.mounted = self.mount_check()
+	    if not self.mounted:
+		self.uploaded = "No files uploaded."
+		self._logger.warning(self.uploaded)
+		return self.uploaded
+	    elif self.mounted:
+	            self.startTime = time.time()
+		    self._logger.info("Button was pressed at: " + str(self.startTime))
+		    self.fileList = []
+		    for r, d, f in os.walk(self.cifsPath):
+			for file in f:
+			    if ".gcode" in file:
+				    self.fileList.append(os.path.join(r, file))
+	            self.filesLastTenMins = []
+	            for i in self.fileList:
+	                #if (self.startTime - os.path.getctime(i)) < 600:
+			# 1 minute for testing
+	                if (self.startTime - os.path.getctime(i)) < 60:
+	                    self.filesLastTenMins.append(i)
+	            self._logger.info("The files from the last ten minutes are: " + str(self.filesLastTenMins))
+	            return self.filesLastTenMins
 
         def on_after_startup(self):
-	    os.chmod('/etc/fstab', stat.S_IWOTH)
 	    self.mount_check()
 
 	def get_template_vars(self):

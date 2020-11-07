@@ -56,6 +56,23 @@ $(function() {
                         buttonContainer.appendChild(self.btnUpload);
 	};
 
+	self.onDataUpdaterPluginMessage = function(plugin, data) {
+		if (plugin == "cifs" && data.type == "not_mounted") {
+			new PNotify({
+				title: 'CIFS share not mounted',
+				text: 'CIFS share is not mounted. Please mount it and try again',
+				type: 'warning'
+			});
+		}
+		if (plugin == "cifs" && data.type == "upload_successful") {
+			new PNotify({
+				title: 'Files uploaded',
+				text: 'Files uploaded successfully!',
+				type: 'success'
+			});
+		}
+	}
+
 	self.initializeButton();
 
         // assign the injected parameters, e.g.:
