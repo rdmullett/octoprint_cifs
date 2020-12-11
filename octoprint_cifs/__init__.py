@@ -13,11 +13,12 @@ import octoprint.plugin
 import octoprint.util
 import os
 import time
+import datetime
 import flask
 import fnmatch
 import re
 import stat
-import threading
+import shutil
 
 class CifsPlugin(octoprint.plugin.SettingsPlugin,
                  octoprint.plugin.AssetPlugin,
@@ -35,7 +36,8 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 
 	def get_settings_defaults(self):
 		return dict(
-			path="/example/path/to/cifs/mount"
+			path="/example/path/to/cifs/mount",
+			timelastrun=0.0
 			# put your plugin's default settings here
 		)
 
@@ -70,9 +72,24 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
 			)
 		)
 
+	# this is to find the time that octoprint_cifs was last run and import everything since then
+	def time_delta_set(self):
+	    self.timeNow = time.time()
+	    self.timeLastRun = self._settings.get(["timelastrun"])
+	    if self.timeLastRun == 0.0:
+		self._logger.info("Looks like this is being run for the first time or the button was double clicked. Skipping upload")
+		self._logger.info("Time of current run %s" % self.timeNow)
+		self._settings.set_float(["timelastrun"],self.timeNow)
+		delta = 0
+		return self.timeNow, delta
+	    else:
+		delta = self.timeNow - self.timeLastRun
+		self._logger.info("Time of current run %s" % self.timeNow)
+		self._settings.set_float(["timelastrun"],self.timeNow)
+		return self.timeNow, delta
+
         def mount_check(self):
             self.cifsPath = self._settings.get(["path"])
-
             if self.cifsPath != "/example/path/to/cifs/mount":
                     self._logger.info("Confirming that %s is mounted" % self.cifsPath)
 		    if os.path.ismount(self.cifsPath):
@@ -90,30 +107,32 @@ class CifsPlugin(octoprint.plugin.SettingsPlugin,
                     self._logger.info("CIFS path is unset. Please set with the proper path to the cifs mount and try again.")
 		    return False
 
-        # file_find() looks to gather any .gcode files that were modified in the last ten minutes and import them
-	#TODO: add state about when the last time that file_find got ran and instead of doing 10 minutes, look back to that timestamp
+        # file_find() looks to gather any .gcode files that were modified since the last run and upload them
+	#TODO: add refresh on the files plugin so that the file shows right away. for now can just click the button
         def file_find(self):
+	    self.timeStart, self.timeDelta = self.time_delta_set()
 	    self.mounted = self.mount_check()
+	    self.timeDeltaMinutes = (self.timeDelta / 60)
 	    if not self.mounted:
 		self.uploaded = "No files uploaded."
 		self._logger.warning(self.uploaded)
 		return self.uploaded
 	    elif self.mounted:
 	            self.startTime = time.time()
-		    self._logger.info("Button was pressed at: " + str(self.startTime))
 		    self.fileList = []
 		    for r, d, f in os.walk(self.cifsPath):
 			for file in f:
 			    if ".gcode" in file:
 				    self.fileList.append(os.path.join(r, file))
-	            self.filesLastTenMins = []
+	            self.filesSinceLastRun = []
 	            for i in self.fileList:
-	                #if (self.startTime - os.path.getctime(i)) < 600:
-			# 1 minute for testing
-	                if (self.startTime - os.path.getctime(i)) < 60:
-	                    self.filesLastTenMins.append(i)
-	            self._logger.info("The files from the last ten minutes are: " + str(self.filesLastTenMins))
-	            return self.filesLastTenMins
+	                if (self.timeStart - os.path.getctime(i)) < self.timeDelta:
+	                    self.filesSinceLastRun.append(i)
+	            self._logger.info("The files from the last %s minutes are: %s" %(str(self.timeDeltaMinutes), str(self.filesSinceLastRun)))
+		    for i in self.filesSinceLastRun:
+			uploadPath = "/home/pi/.octoprint/uploads/" + os.path.basename(i)
+			shutil.copyfile(i, uploadPath)
+			self._logger.info("Uploaded %s" %uploadPath)
 
         def on_after_startup(self):
 	    self.mount_check()
