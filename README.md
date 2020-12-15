@@ -19,7 +19,7 @@ or manually using this URL:
 
 The primary configuration option available is **CIFS Share Path**. This should reflect the path at which you have mounted your cifs share containing gcode files. 
 
-##Limitations and Considerations
+## Limitations and Considerations
 
 - The plugin cannot currently be configured to modify the time in which it will look backwards. It will only look backwards to the previous run, and grab all files since the last run. 
 
